@@ -1,7 +1,7 @@
 import asyncio
 import aiohttp
 import warnings
-from itertools import chain
+from aiohttp import web
 
 import ads
 
@@ -333,6 +333,7 @@ async def network_search(session,
         if done: break
 
 
+
 if __name__ == '__main__':
 
     from time import time
@@ -349,6 +350,32 @@ if __name__ == '__main__':
     print(time() - t_a)
     """
 
+
+
+    #@routes.get("/stream/{author_name}")
+    async def single_author_handler(request):
+        print("in single_author_handler")
+        author_name = request.match_info["author_name"]
+
+        #return web.Response(text=f"Hi {author_name}")
+
+        # TODO: This should probably go somewhere else.
+        async with aiohttp.ClientSession(headers={
+                "Authorization": f"Bearer {ADS_TOKEN}",
+                "Content-Type": "application/json",
+            }) as session:
+            print("doing something")
+
+            # TODO: allow for similarity search indices too.
+            async for article in network_search(session, (author_name, )):
+                yield web.Response(text=json.dumps(article))
+
+
+    async def hello(request):
+        return web.Response(text="Hello, world")
+
+
+    """
     async def main():
         t_a = time()
         async with aiohttp.ClientSession(headers={
@@ -372,9 +399,19 @@ if __name__ == '__main__':
             print(time() - t_a)
             raise a
 
-
     event_loop = asyncio.get_event_loop()
     try:
         event_loop.run_until_complete(main())
     finally:
         event_loop.close()
+    """
+
+
+    app = web.Application()
+    app.add_routes([
+        web.get("/", hello),
+        web.get("/stream/{author_name}", single_author_handler)
+    ])
+    web.run_app(app)
+
+    print("Ready?")
