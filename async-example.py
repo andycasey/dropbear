@@ -1,6 +1,7 @@
 import asyncio
 import aiohttp
 import warnings
+import json
 from aiohttp import web
 
 import ads
@@ -336,39 +337,30 @@ async def network_search(session,
 
 if __name__ == '__main__':
 
-    from time import time
-
-    """
-    # ~10 seconds compared to 2.5 seconds (async) 
-    # Not a completely fair comparison for various reasons but whatever.
-    t_a = time()
-    import ads
-    bar = []
-    for article in ads.SearchQuery(q="author:\"Casey, A\"", rows=20, max_pages=100,
-                                   fl=["id", "author", "bibcode", "year", "aff"]):
-        bar.append(article)
-    print(time() - t_a)
-    """
 
 
-
-    #@routes.get("/stream/{author_name}")
     async def single_author_handler(request):
-        print("in single_author_handler")
         author_name = request.match_info["author_name"]
-
-        #return web.Response(text=f"Hi {author_name}")
-
-        # TODO: This should probably go somewhere else.
+        
         async with aiohttp.ClientSession(headers={
                 "Authorization": f"Bearer {ADS_TOKEN}",
                 "Content-Type": "application/json",
             }) as session:
-            print("doing something")
 
-            # TODO: allow for similarity search indices too.
+            response = web.StreamResponse(
+                status=200,
+                reason="OK",
+                headers={"Content-Type": "text/plain"}
+            )
+
+            await response.prepare(request)
+
             async for article in network_search(session, (author_name, )):
-                yield web.Response(text=json.dumps(article))
+                await response.write(json.dumps(article).encode("utf-8"))
+
+            await response.write_eof()
+
+        return response
 
 
     async def hello(request):
@@ -376,6 +368,7 @@ if __name__ == '__main__':
 
 
     """
+    from time import time 
     async def main():
         t_a = time()
         async with aiohttp.ClientSession(headers={
