@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Dropbear</title>
+
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+        integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+    <link rel="stylesheet" href="css/sortable-theme-bootstrap.css">
+
+</head>
+
+<body>
+
+    <table class="sortable-theme-bootstrap" data-sortable>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Affiliation</th>
+                <th>
+                    Gender Guess
+                    <!-- https://github.com/danklammer/bytesize-icons -->
+                    <svg id="i-info" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="12" height="12"
+                        fill="none" stroke="currentcolor" stroke-linecap="round" stroke-linejoin="round"
+                        stroke-width="2" data-toggle="popover" data-trigger="hover" data-placement="bottom"
+                        data-content="This column is estimated based on the given name available on ADS.">
+                        <path d=" M16 14 L16 23 M16 8 L16 10" />
+                        <circle cx="16" cy="16" r="14" />
+                    </svg>
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Andrew Casey</td>
+                <td>Monash</td>
+                <td>M</td>
+            </tr>
+            <tr>
+                <td>Ruth Angus</td>
+                <td>AMNH</td>
+                <td>F</td>
+            </tr>
+            <tr>
+                <td>Daniel Foreman-Mackey</td>
+                <td>Flatiron</td>
+                <td>M</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js"
+        integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
+        integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
+        crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"
+        integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6"
+        crossorigin="anonymous"></script>
+    <script src="js/sortable.min.js"></script>
+
+    <script>
+        $(function () {
+            $('[data-toggle="popover"]').popover()
+        })
+    </script>
+
+</body>
+
+</html>

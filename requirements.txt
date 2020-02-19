@@ -2,3 +2,5 @@ ads
 flake8
 black
 aiohttp
+aiohttp
+aiohttp_jinja2
