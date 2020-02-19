@@ -10,149 +10,6 @@ import ads
 ADS_TOKEN = ads.base.BaseQuery().token
 
 
-'''
-async def search_query(session, q, **kwargs):
-
-    params = dict(
-        q=q,
-        fl=",".join(["id", "author", "bibcode", "year", "aff"]),
-        start=0,
-        rows=20,
-    )
-
-    while True:
-        print(f"Searching {params}")
-
-        async with session.get(
-                'https://api.adsabs.harvard.edu/v1/search/query',
-                params=params
-            ) as response:
-
-            content = await response.json()
-            
-            # parse response
-            for article in content["response"]["docs"]:
-                yield article
-                        
-        if params["start"] >= content["response"]["numFound"]:
-            # Retrieved all articles.
-            break
-
-        # Update start value to retrieve new articles.
-        params.update(
-            start=params["start"] + params["rows"]
-        )
-
-'''
-'''
-async def search_query(session, q, start=0, rows=20, **kwargs):
-
-    params = dict(
-        q=q,
-        fl=",".join(["id", "author", "bibcode", "year", "aff"]),
-        start=start,
-        rows=rows
-    )
-
-    print(f"Searching {params}")
-
-    async with session.get(
-            'https://api.adsabs.harvard.edu/v1/search/query',
-            params=params
-        ) as response:
-
-        content = await response.json()
-
-        # Immediately start looking for more articles.
-        if content["response"]["numFound"] >= (params["start"] + params["rows"]):
-            async for each in search_query(
-                    session, 
-                    q=q, 
-                    rows=rows,
-                    start=params["start"] + params["rows"]
-                ):
-                yield each
-        
-        # Yield responses
-        for article in content["response"]["docs"]:
-            yield article
-'''
-
-"""
-async def _search_query(session, **params):
-    print(f"Searching {params}")
-    async with session.get(
-            'https://api.adsabs.harvard.edu/v1/search/query',
-            params=params
-        ) as response:
-
-        content = await response.json()
-        
-        # Yield responses
-        for article in content["response"]["docs"]:
-            yield article
-
-
-
-async def search_query(session, q, start=0, rows=20, **kwargs):
-    params = dict(
-        q=q,
-        fl=",".join(["id", "author", "bibcode", "year", "aff"]),
-        start=start,
-        rows=rows
-    )
-
-    print(f"Searching {params}")
-
-    async with session.get(
-            'https://api.adsabs.harvard.edu/v1/search/query',
-            params=params
-        ) as response:
-
-        content = await response.json()
-        raise a
-        
-        numFound = content["response"]["numFound"]
-        if "__skip" not in kwargs:
-            coroutines = [
-                search_query(session, q, start=s, rows=rows, __skip=True) \
-                    for s in range(rows, numFound, rows)
-            ]
-            #for each in asyncio.as_completed(coroutines):
-            #    return await each
-            return chain(*(await asyncio.gather(*coroutines)))
-
-        return content["response"]["docs"]
-        # Yield responses
-        #for article in content["response"]["docs"]:
-        #    yield article
-
-
-async def _search_query(session, q, start, rows):
-    params = dict(
-        q=q,
-        fl=",".join(["id", "author", "bibcode", "year", "aff"]),
-        start=start,
-        rows=rows
-    )
-
-    print(f"Searching {params}")
-
-    async with session.get(
-            'https://api.adsabs.harvard.edu/v1/search/query',
-            params=params
-        ) as response:
-
-        content = await response.json()
-    return content["response"]["docs"]
-
-
-async def search_query(session, q, start=0, rows=20, max_rows=500, **kwargs):
-    return chain(*(await asyncio.gather(*(
-        _search_query(session, q, s, rows) for s in range(0, max_rows, rows)
-    ))))
-"""
-
 
 async def _search(session, **params):
     print(f"Searching {params}")
@@ -170,6 +27,7 @@ async def _search(session, **params):
 
     print(f"Found {content['response']['numFound']} articles from {params}")
     return content
+
 
 def unique_name_descriptor(author_name):
     """
@@ -264,7 +122,7 @@ async def network_search(session,
     rows = kwargs.pop("rows", 20) # number of rows to retrieve per page
     similarity_rows = kwargs.pop("similarity_rows", 5) # number of rows to retrieve per similarity search
 
-    fields = kwargs.pop("fields", ["id", "author", "bibcode", "year", "aff"])
+    fields = kwargs.pop("fields", ["id", "author", "bibcode", "year", "aff", "orcid"])
     max_pages = 1 + int(max_initial_rows / rows)
     fl = ",".join(fields)
     
@@ -333,39 +191,71 @@ async def network_search(session,
 
         if done: break
 
+    #raise StopIteration()
+    #return None
+
+
+async def author_suggestions(articles):
+    """
+    Returns a generator that constantly yields summary statistics on the given articles. This function will take the 
+    `articles` generator and provide name suggestions and associated metrics.
+
+    :param articles:
+        An iterable that yields articles.
+
+    :returns:
+        A generator that will constantly yield name suggestions.
+    """
+
+    suggestions = dict()
+    ignore_affiliations = set({'', '-'})
+
+    async for article in articles:
+        for j, (author, aff) in enumerate(zip(article["author"], article["aff"])):
+
+            key = unique_name_descriptor(author)
+            
+            suggestions.setdefault(key, dict(
+                full_name=None,
+                orcid=None,
+                bibcodes=[],
+                affiliations=set(),
+                matched_names=set(),
+                number_as_first_author=0
+                )
+            )
+
+            suggestions[key]["bibcodes"].append(article["bibcode"])
+            suggestions[key]["matched_names"].add(author)
+            suggestions[key]["affiliations"] |= set(map(str.strip, aff.split(";"))).difference(ignore_affiliations)
+            
+            # TODO: Parse the name instead of just taking the longest name (as these will have many formats)
+            suggestions[key]["full_name"] = max(suggestions[key]["matched_names"], key=len)
+
+            if not j:
+                suggestions[key]["number_as_first_author"] += 1
+
+            # ORCID not always returned by NASA/ADS, even if we ask nicely.
+            try:
+                orcid = article["orcid"][j]
+
+            except KeyError:
+                None
+            
+            else:
+                if orcid not in ("-", ""):
+                    assert suggestions[key]["orcid"] is None \
+                        or suggestions[key]["orcid"] == orcid, f"{author} has multiple orcids!"
+                    
+                    suggestions[key]["orcid"] = orcid
+
+            yield suggestions[key]
+
+
+
 
 
 if __name__ == '__main__':
-
-
-
-    async def single_author_handler(request):
-        author_name = request.match_info["author_name"]
-        
-        async with aiohttp.ClientSession(headers={
-                "Authorization": f"Bearer {ADS_TOKEN}",
-                "Content-Type": "application/json",
-            }) as session:
-
-            response = web.StreamResponse(
-                status=200,
-                reason="OK",
-                headers={"Content-Type": "text/plain"}
-            )
-
-            await response.prepare(request)
-
-            async for article in network_search(session, (author_name, )):
-                await response.write(json.dumps(article).encode("utf-8"))
-
-            await response.write_eof()
-
-        return response
-
-
-    async def hello(request):
-        return web.Response(text="Hello, world")
-
 
     """
     from time import time 
@@ -398,6 +288,66 @@ if __name__ == '__main__':
     finally:
         event_loop.close()
     """
+
+
+
+
+    # Web stuff below.
+    from time import time
+    async def main():
+        t_a = time()
+        async with aiohttp.ClientSession(headers={
+                "Authorization": f"Bearer {ADS_TOKEN}",
+                "Content-Type": "application/json",
+            }) as session:
+
+            args = (session, ("Casey, A"))
+
+            count = 0
+            async for suggestions in author_suggestions(network_search(*args)):
+                print(time() - t_a, count, len(suggestions))
+                count += 1
+
+            print(time() - t_a, count)
+            raise a
+
+    event_loop = asyncio.get_event_loop()
+    try:
+        event_loop.run_until_complete(main())
+    finally:
+        event_loop.close()
+
+
+    raise a
+
+
+    async def single_author_handler(request):
+        author_name = request.match_info["author_name"]
+        
+        async with aiohttp.ClientSession(headers={
+                "Authorization": f"Bearer {ADS_TOKEN}",
+                "Content-Type": "application/json",
+            }) as session:
+
+            response = web.StreamResponse(
+                status=200,
+                reason="OK",
+                headers={"Content-Type": "text/plain"}
+            )
+
+            await response.prepare(request)
+
+            async for article in network_search(session, (author_name, )):
+                await response.write(json.dumps(article).encode("utf-8"))
+
+            await response.write_eof()
+
+        return response
+
+
+    async def hello(request):
+        return web.Response(text="Hello, world")
+
 
 
     app = web.Application()
