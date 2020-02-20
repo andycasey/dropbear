@@ -3,5 +3,6 @@ flake8
 black
 aiohttp
 aiohttp_jinja2
+python-Levenshtein
 gender-guesser
 fuzzywuzzy
