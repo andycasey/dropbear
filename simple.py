@@ -2,6 +2,7 @@ from aiohttp import web
 import jinja2
 import aiohttp_jinja2
 
+import search_utils
 
 async def stream(request):
     response = web.StreamResponse(
@@ -11,6 +12,10 @@ async def stream(request):
 
     for i in range(5000):
         await response.write("{0}\n".format(i).encode("utf-8"))
+    
+    #author_names = ("Foreman-Mackey, D", "Casey, A")
+    #async for suggestion in search_utils.suggest_authors(author_names):
+    #    await response.write(f"{suggestion}".encode("utf-8"))
 
     await response.write_eof()
     return response
