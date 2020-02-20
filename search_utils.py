@@ -16,9 +16,8 @@ __gender_detector = gender.Detector()
 async def _search(session, **params):
     logger.debug(f"Searching {params}")
     async with session.get(
-            "https://api.adsabs.harvard.edu/v1/search/query",
-            params=params) \
-        as response:
+        "https://api.adsabs.harvard.edu/v1/search/query", params=params
+    ) as response:
         try:
             # TODO: I'm not sure if we should be awaiting here..
             content = await response.json()
@@ -28,10 +27,10 @@ async def _search(session, **params):
                 logger.exception("Exception occurred when ")
                 return None
 
-    logger.debug(f"Found {content['response']['numFound']} articles from {params}")
+    logger.debug(
+        f"Found {content['response']['numFound']} articles from {params}"
+    )
     return content
-
-
 
 
 def unique_name_descriptor(author_name):
@@ -46,7 +45,7 @@ def unique_name_descriptor(author_name):
     parsed = parse_author_name(author_name)
     last_name, given_names = (parsed["last_name"], parsed["given_names"])
     given_initial = given_names[:1]
-    return f'{last_name}, {given_initial}.'
+    return f"{last_name}, {given_initial}."
 
 
 def parse_author_name(author_name):
@@ -77,11 +76,13 @@ def parse_author_name(author_name):
         last_name=last_name,
         given_names=given_names,
         first_name=None if initial_only else first_name,
-        initial_only=initial_only
+        initial_only=initial_only,
     )
 
 
-def similar_author_names_on_author_indices(article, given_names, author_indices):
+def similar_author_names_on_author_indices(
+    article, given_names, author_indices
+):
     if author_indices is None:
         return False
 
@@ -95,23 +96,23 @@ def similar_author_names_on_author_indices(article, given_names, author_indices)
 
         except IndexError:
             continue
-        
+
         else:
             parsed_author = unique_name_descriptor(author)
 
             if parsed_author in parsed_given_names:
                 return True
-    
+
     return False
-            
 
 
-
-async def network_search(session,
-                         author_names, 
-                         max_initial_rows=500, 
-                         similarity_search_on_author_indices=None, 
-                         **kwargs):
+async def network_search(
+    session,
+    author_names,
+    max_initial_rows=500,
+    similarity_search_on_author_indices=None,
+    **kwargs,
+):
     """
     Returns a generator that yields articles found through a network search of NASA/ADS, given author names.
 
@@ -137,33 +138,50 @@ async def network_search(session,
         Set `similarity_search_on_author_indices = None` to prevent any similarity searches.
     """
 
-    if isinstance(author_names, (str, )):
-        warnings.warn("author_names should be a list-like object. Assuming single author name given; converting to tuple.")
-        author_names = (author_names, )
+    if isinstance(author_names, (str,)):
+        warnings.warn(
+            "author_names should be a list-like object. Assuming single author name given; converting to tuple."
+        )
+        author_names = (author_names,)
 
     if isinstance(similarity_search_on_author_indices, int):
-        warnings.warn("similarity_search_on_author_indices should be a list-like of integers")
-        similarity_search_on_author_indices = (similarity_search_on_author_indices, )
-    
-    # Some tings.
-    rows = kwargs.pop("rows", 20) # number of rows to retrieve per page
-    similarity_rows = kwargs.pop("similarity_rows", 5) # number of rows to retrieve per similarity search
+        warnings.warn(
+            "similarity_search_on_author_indices should be a list-like of integers"
+        )
+        similarity_search_on_author_indices = (
+            similarity_search_on_author_indices,
+        )
 
-    fields = kwargs.pop("fields", ["id", "author", "bibcode", "year", "aff", "orcid", "pubdate"])
+    # Some tings.
+    rows = kwargs.pop("rows", 20)  # number of rows to retrieve per page
+    similarity_rows = kwargs.pop(
+        "similarity_rows", 5
+    )  # number of rows to retrieve per similarity search
+
+    fields = kwargs.pop(
+        "fields",
+        ["id", "author", "bibcode", "year", "aff", "orcid", "pubdate"],
+    )
     max_pages = 1 + int(max_initial_rows / rows)
     fl = ",".join(fields)
-    
+
     # For our similarity searches (if we make any.)
     similarity_args = (author_names, similarity_search_on_author_indices)
-    similarity_search_kwds = dict(fl=fl, start=0, rows=similarity_rows, sort="score desc")
+    similarity_search_kwds = dict(
+        fl=fl, start=0, rows=similarity_rows, sort="score desc"
+    )
 
     # Let's do an initial search based on the author's name.
-    assert '"' not in ''.join(author_names), "You're going to have a \"bad\" \"time\"."
+    assert '"' not in "".join(
+        author_names
+    ), 'You\'re going to have a "bad" "time".'
     params = dict(
-        q=" OR ".join([f"author:\"{author_name}\"" for author_name in author_names]),
+        q=" OR ".join(
+            [f'author:"{author_name}"' for author_name in author_names]
+        ),
         fl=fl,
         rows=rows,
-        max_pages=max_pages
+        max_pages=max_pages,
     )
     # We await here because we really need this content.
     content = await _search(session, start=0, **params)
@@ -181,16 +199,24 @@ async def network_search(session,
     # Start streaming back the initial articles.
     for article in content["response"]["docs"]:
         # If the article author matches our similarity author indices, add a coroutine to do a similarity search.
-        if similar_author_names_on_author_indices(article, *similarity_args) \
-        and article["bibcode"] not in bibcodes_searched_for_similarity:
+        if (
+            similar_author_names_on_author_indices(article, *similarity_args)
+            and article["bibcode"] not in bibcodes_searched_for_similarity
+        ):
             bibcodes_searched_for_similarity.add(article["bibcode"])
-            awaitables.append(_search(session, q=f"similar({article['bibcode']})", **similarity_search_kwds))
+            awaitables.append(
+                _search(
+                    session,
+                    q=f"similar({article['bibcode']})",
+                    **similarity_search_kwds,
+                )
+            )
         yield article
 
-    # We use an outer loop here because we might add coroutines to `awaitables` while we are awaiting on those 
-    # coroutines. In practice we are awaiting on results from future pages from ADS, and we may want to asynchronously 
+    # We use an outer loop here because we might add coroutines to `awaitables` while we are awaiting on those
+    # coroutines. In practice we are awaiting on results from future pages from ADS, and we may want to asynchronously
     # do similarity searches on some of those articles that have been returned.
-    
+
     # This is probably too hacky; there is probably a better way.
     while True:
         done = True
@@ -210,22 +236,38 @@ async def network_search(session,
                 done = False
                 for article in next_content["response"]["docs"]:
                     # If the article author matches our similarity author indices, add a coroutine to do a similarity search
-                    if similar_author_names_on_author_indices(article, *similarity_args) \
-                    and article["bibcode"] not in bibcodes_searched_for_similarity:
-                        bibcodes_searched_for_similarity.add(article["bibcode"])
-                        awaitables.insert(0, _search(session, q=f"similar({article['bibcode']})", **similarity_search_kwds))
+                    if (
+                        similar_author_names_on_author_indices(
+                            article, *similarity_args
+                        )
+                        and article["bibcode"]
+                        not in bibcodes_searched_for_similarity
+                    ):
+                        bibcodes_searched_for_similarity.add(
+                            article["bibcode"]
+                        )
+                        awaitables.insert(
+                            0,
+                            _search(
+                                session,
+                                q=f"similar({article['bibcode']})",
+                                **similarity_search_kwds,
+                            ),
+                        )
                     yield article
 
-        if done: break
+        if done:
+            break
 
 
-
-async def suggest_authors(author_names,
-                          max_initial_rows=500,
-                          similar_author_names_on_author_indices=None,
-                          session=None,
-                          affiliation_uniqueness_ratio=75,
-                          **kwargs):
+async def suggest_authors(
+    author_names,
+    max_initial_rows=500,
+    similar_author_names_on_author_indices=None,
+    session=None,
+    affiliation_uniqueness_ratio=75,
+    **kwargs,
+):
     """
     Perform a network search of NASA/ADS, given some author name(s), and return a generator that will yield suggestions
     of alternative author names, and associated metrics. 
@@ -267,29 +309,31 @@ async def suggest_authors(author_names,
     kwds = dict(
         author_names=author_names,
         max_initial_rows=max_initial_rows,
-        similar_author_names_on_author_indices=similar_author_names_on_author_indices
+        similar_author_names_on_author_indices=similar_author_names_on_author_indices,
     )
     kwds.update(kwargs)
 
     if session is None:
         # TODO: Overkill!
         token = ads.base.BaseQuery().token
-        async with aiohttp.ClientSession(headers={
+        async with aiohttp.ClientSession(
+            headers={
                 "Authorization": f"Bearer {token}",
                 "Content-Type": "application/json",
-            }) as session:
+            }
+        ) as session:
 
             async for suggestion in collate_authors(
-                    network_search(session, **kwds),
-                    affiliation_uniqueness_ratio=affiliation_uniqueness_ratio
-                ):
+                network_search(session, **kwds),
+                affiliation_uniqueness_ratio=affiliation_uniqueness_ratio,
+            ):
                 yield suggestion
 
     else:
         async for suggestion in collate_authors(
-                network_search(session, **kwds),
-                affiliation_uniqueness_ratio=affiliation_uniqueness_ratio
-            ):
+            network_search(session, **kwds),
+            affiliation_uniqueness_ratio=affiliation_uniqueness_ratio,
+        ):
             yield suggestion
 
 
@@ -307,7 +351,7 @@ def speculate_gender_expression(first_name):
     """
     xyz = __gender_detector.get_gender(first_name)
     return xyz
-    
+
 
 async def collate_authors(articles, affiliation_uniqueness_ratio):
     """
@@ -326,36 +370,42 @@ async def collate_authors(articles, affiliation_uniqueness_ratio):
     """
 
     suggestions = dict()
-    ignore_affiliations = set({'', '-'})
+    ignore_affiliations = set({"", "-"})
 
     pd_format = "%Y-%m-%d"
-    _affiliation_split_str = " ; " # because &amp; exists.
+    _affiliation_split_str = " ; "  # because &amp; exists.
     _fix_month = lambda s: s.replace("-00-", "-01-")
-    _fix_pubdate = lambda s: _fix_month(f"{s[:-1]}1" if s.endswith("-00") else s)
+    _fix_pubdate = lambda s: _fix_month(
+        f"{s[:-1]}1" if s.endswith("-00") else s
+    )
 
     async for article in articles:
-        for j, (author, aff) in enumerate(zip(article["author"], article["aff"])):
+        for j, (author, aff) in enumerate(
+            zip(article["author"], article["aff"])
+        ):
 
             key = unique_name_descriptor(author)
-            
-            suggestions.setdefault(key, dict(
-                full_name=None,
-                unique_name_descriptor=key,
-                orcid=None,
-                most_recent_primary_affiliation=None,
-                most_recent_pubdate=None,
-                bibcodes=[],
-                affiliations=set(),
-                parsed_affiliations=set(),
-                matched_names=set(),
-                number_of_articles_as_first_author=0,
-                number_of_articles=0,
-                article_years=[],
-                inferred_gender="unknown"
-                )
+
+            suggestions.setdefault(
+                key,
+                dict(
+                    full_name=None,
+                    unique_name_descriptor=key,
+                    orcid=None,
+                    most_recent_primary_affiliation=None,
+                    most_recent_pubdate=None,
+                    bibcodes=[],
+                    affiliations=set(),
+                    parsed_affiliations=set(),
+                    matched_names=set(),
+                    number_of_articles_as_first_author=0,
+                    number_of_articles=0,
+                    article_years=[],
+                    inferred_gender="unknown",
+                ),
             )
-            
-            # Add bibcode and year. 
+
+            # Add bibcode and year.
             suggestions[key]["bibcodes"].append(article["bibcode"])
             suggestions[key]["article_years"].append(int(article["year"]))
 
@@ -364,51 +414,70 @@ async def collate_authors(articles, affiliation_uniqueness_ratio):
             suggestions[key]["matched_names"].add(author)
 
             previous_full_name = suggestions[key]["full_name"]
-            suggestions[key]["full_name"] = max(suggestions[key]["matched_names"], key=len)
-            
+            suggestions[key]["full_name"] = max(
+                suggestions[key]["matched_names"], key=len
+            )
+
             # Infer gender expression.
             # TODO: Should we run gender detector on all matched names and take the most common?
-            #       Right now if we searched for 
-            #           "Foreman-Mackey, Dan" 
-            #       and found a *single* article authored by 
+            #       Right now if we searched for
+            #           "Foreman-Mackey, Dan"
+            #       and found a *single* article authored by
             #           "Foreman-Mackey, Danielle"
             #       then this would return female because Danielle is longer than Dan.
-            if (previous_full_name is None or previous_full_name != suggestions[key]["full_name"]) \
-            and suggestions[key]["inferred_gender"] == "unknown":
+            if (
+                previous_full_name is None
+                or previous_full_name != suggestions[key]["full_name"]
+            ) and suggestions[key]["inferred_gender"] == "unknown":
                 # Name updated.
                 parsed_name = parse_author_name(suggestions[key]["full_name"])
                 if not parsed_name["initial_only"]:
-                    suggestions[key]["inferred_gender"] = speculate_gender_expression(parsed_name["first_name"])
+                    suggestions[key][
+                        "inferred_gender"
+                    ] = speculate_gender_expression(parsed_name["first_name"])
 
             # Update affiliations.
-            new_affiliations = set(map(str.strip, aff.split(_affiliation_split_str)))
-            new_affiliations = new_affiliations.difference(ignore_affiliations) \
-                                               .difference(suggestions[key]["affiliations"])
+            new_affiliations = set(
+                map(str.strip, aff.split(_affiliation_split_str))
+            )
+            new_affiliations = new_affiliations.difference(
+                ignore_affiliations
+            ).difference(suggestions[key]["affiliations"])
             for new_affiliation in new_affiliations:
                 for existing_affiliation in suggestions[key]["affiliations"]:
-                    if fuzz.partial_ratio(existing_affiliation, new_affiliation) >= affiliation_uniqueness_ratio:
+                    if (
+                        fuzz.partial_ratio(
+                            existing_affiliation, new_affiliation
+                        )
+                        >= affiliation_uniqueness_ratio
+                    ):
                         break
-                
+
                 else:
                     # Add new parsed affiliation
-                    suggestions[key]["parsed_affiliations"].add(new_affiliation)
+                    suggestions[key]["parsed_affiliations"].add(
+                        new_affiliation
+                    )
 
-            # Now add those new affiliations to the full list.        
+            # Now add those new affiliations to the full list.
             suggestions[key]["affiliations"] |= new_affiliations
 
-            # Update counts.            
+            # Update counts.
             suggestions[key]["number_of_articles"] += 1
             if not j:
                 suggestions[key]["number_of_articles_as_first_author"] += 1
-            
+
             article_pubdate = _fix_pubdate(article["pubdate"])
             most_recent_pubdate = suggestions[key]["most_recent_pubdate"]
-            
-            if most_recent_pubdate is None \
-            or time.strptime(article_pubdate, pd_format) > time.strptime(most_recent_pubdate, pd_format):
+
+            if most_recent_pubdate is None or time.strptime(
+                article_pubdate, pd_format
+            ) > time.strptime(most_recent_pubdate, pd_format):
                 suggestions[key].update(
                     most_recent_pubdate=article_pubdate,
-                    most_recent_primary_affiliation=aff.split(_affiliation_split_str)[0].strip()
+                    most_recent_primary_affiliation=aff.split(
+                        _affiliation_split_str
+                    )[0].strip(),
                 )
 
             # ORCID not always returned by NASA/ADS, even if we ask nicely.
@@ -418,8 +487,10 @@ async def collate_authors(articles, affiliation_uniqueness_ratio):
                 None
             else:
                 if orcid not in ("-", "", "."):
-                    assert suggestions[key]["orcid"] is None \
-                        or suggestions[key]["orcid"] == orcid, f"{author} has multiple orcids!"
+                    assert (
+                        suggestions[key]["orcid"] is None
+                        or suggestions[key]["orcid"] == orcid
+                    ), f"{author} has multiple orcids!"
                     suggestions[key]["orcid"] = orcid
 
             # TODO: Calculate other metrics for filtering/sorting.
