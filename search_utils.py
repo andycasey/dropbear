@@ -1,7 +1,7 @@
 import asyncio
 import aiohttp
 import warnings
-import logging as logger
+import logging
 import json
 import time
 from aiohttp import web
@@ -11,6 +11,9 @@ import ads
 import gender_guesser.detector as gender
 
 __gender_detector = gender.Detector()
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 async def _search(session, **params):
@@ -55,6 +58,8 @@ def parse_author_name(author_name):
     :param author_name:
         The name as given, which could be a number of different formats.
     """
+
+    logger.debug(f"Parsing author name '{author_name}'")
 
     number_of_commas = author_name.count(",")
     suffix = None
