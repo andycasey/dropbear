@@ -18,12 +18,10 @@
         }
         document.getElementById("tableBody").innerHTML = rows;
         Sortable.initTable(table);
-        updateProgressText();
       }, 1000); // set this low for more frequent table updates
     }
-    function updateProgressText() {
-      let numberOfRows = document.getElementById("tableBody").childElementCount;
-      document.getElementById("progressText").innerHTML = numberOfRows + " suggestions";
+    function updateProgressText(numberOfSuggestions) {
+      document.getElementById("progressText").innerHTML = numberOfSuggestions + " suggestions";
     }
 
     // Enable search
@@ -67,6 +65,7 @@
                 }
               });
               updateTable();
+              updateProgressText(Object.keys(authors).length);
               process();
             });
           }
