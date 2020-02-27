@@ -1,21 +1,36 @@
+import json
+
 from aiohttp import web
 import jinja2
 import aiohttp_jinja2
 
 import search_utils
 
-async def stream(request):
+
+class CustomEncoder(json.JSONEncoder):
+    def default(self, obj):
+        try:
+            iterable = iter(obj)
+        except TypeError:
+            pass
+        else:
+            return list(sorted(iterable))
+        return json.JSONEncoder.default(self, obj)
+
+
+async def search(request):
+    data = await request.json()
+
     response = web.StreamResponse(
         status=200, reason="OK", headers={"Content-Type": "text/plain"},
     )
     await response.prepare(request)
 
-    for i in range(5000):
-        await response.write("{0}\n".format(i).encode("utf-8"))
-    
-    #author_names = ("Foreman-Mackey, D", "Casey, A")
-    #async for suggestion in search_utils.suggest_authors(author_names):
-    #    await response.write(f"{suggestion}".encode("utf-8"))
+    author_names = data["name"].split(";")
+    async for suggestion in search_utils.suggest_authors(author_names):
+        await response.write(
+            (json.dumps(suggestion, cls=CustomEncoder) + "\n").encode("utf-8")
+        )
 
     await response.write_eof()
     return response
@@ -27,9 +42,14 @@ async def index(request):
 
 
 app = web.Application()
-app.add_routes([web.get("/", index)])
-app.add_routes([web.get("/stream", stream)])
+app.add_routes(
+    [
+        web.get("/", index),
+        web.post("/search", search),
+        web.static("/static", "./front/static"),
+    ]
+)
 
-aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader("./templates"))
+aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader("./front/templates"))
 
 web.run_app(app)

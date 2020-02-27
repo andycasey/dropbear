@@ -117,24 +117,24 @@ async def network_search(
     Returns a generator that yields articles found through a network search of NASA/ADS, given author names.
 
     :param session:
-        A `aiohttp.ClientSession` to use for the search. The session is expected to already have the appropriate 
+        A `aiohttp.ClientSession` to use for the search. The session is expected to already have the appropriate
         NASA/ADS authentication headers.
-    
+
     :param author_names:
         A list-like object containing names (as "Last, First I.") for the initial search.
-    
+
     :param max_initial_rows: [optional]
-        The maximum number of initial articles (rows) that will be retrieved for *each* entry in `author_names`. The 
-        default is 500 rows (per entry in `author_names`). The total number of articles generated will be higher than 
+        The maximum number of initial articles (rows) that will be retrieved for *each* entry in `author_names`. The
+        default is 500 rows (per entry in `author_names`). The total number of articles generated will be higher than
         `len(author_names) * max_initial_rows` if a similarity search is also performed.
 
     :param similarity_search_on_author_indices: [optional]
         A list-like object containing the indices where a similarity search should be performed, if any of the
         `author_names` appear as one of these authored indices. For example, if `author_names = ("Snow, Mary", "Water, M.")`
-        and `similarity_search_on_author_indices = (0, 3, 5)` then any time an article was found where _Mary Snow_ or 
-        _M. Water_ appeared as the first, fourth, or sixth author (i.e., zero-indexed), then a similarity search would 
-        be performed on that article, using the NASA/ADS "similar(bibcode)" functionality. 
-        
+        and `similarity_search_on_author_indices = (0, 3, 5)` then any time an article was found where _Mary Snow_ or
+        _M. Water_ appeared as the first, fourth, or sixth author (i.e., zero-indexed), then a similarity search would
+        be performed on that article, using the NASA/ADS "similar(bibcode)" functionality.
+
         Set `similarity_search_on_author_indices = None` to prevent any similarity searches.
     """
 
@@ -270,8 +270,8 @@ async def suggest_authors(
 ):
     """
     Perform a network search of NASA/ADS, given some author name(s), and return a generator that will yield suggestions
-    of alternative author names, and associated metrics. 
-    
+    of alternative author names, and associated metrics.
+
     Each execution of the generator will yield a dictionary containing one author suggestion, with relevant metadata.
     If an author is found on multiple articles then that author may be suggested multiple times by the generator, but
     successive dictionaries for that author will contain updated information about that author (e.g., matched bibcodes,
@@ -279,23 +279,23 @@ async def suggest_authors(
 
     :param author_names:
         A list-like object containing names (as "Last, First I.") for the initial search.
-    
+
     :param max_initial_rows: [optional]
-        The maximum number of initial articles (rows) that will be retrieved for *each* entry in `author_names`. The 
-        default is 500 rows (per entry in `author_names`). The total number of articles generated will be higher than 
+        The maximum number of initial articles (rows) that will be retrieved for *each* entry in `author_names`. The
+        default is 500 rows (per entry in `author_names`). The total number of articles generated will be higher than
         `len(author_names) * max_initial_rows` if a similarity search is also performed.
 
     :param similarity_search_on_author_indices: [optional]
         A list-like object containing the indices where a similarity search should be performed, if any of the
         `author_names` appear as one of these authored indices. For example, if `author_names = ("Snow, Mary", "Water, M.")`
-        and `similarity_search_on_author_indices = (0, 3, 5)` then any time an article was found where _Mary Snow_ or 
-        _M. Water_ appeared as the first, fourth, or sixth author (i.e., zero-indexed), then a similarity search would 
-        be performed on that article, using the NASA/ADS "similar(bibcode)" functionality. 
-        
+        and `similarity_search_on_author_indices = (0, 3, 5)` then any time an article was found where _Mary Snow_ or
+        _M. Water_ appeared as the first, fourth, or sixth author (i.e., zero-indexed), then a similarity search would
+        be performed on that article, using the NASA/ADS "similar(bibcode)" functionality.
+
         Set `similarity_search_on_author_indices = None` to prevent any similarity searches.
 
     :param session: [optional]
-        A `aiohttp.ClientSession` asynchronous object that is already authenticated to execute queries through the 
+        A `aiohttp.ClientSession` asynchronous object that is already authenticated to execute queries through the
         NASA/ADS API. If `None` is provided then a `aiohttp.ClientSession` will be created for this search.
 
     :param affiliation_uniqueness_ratio: [optional]
@@ -345,8 +345,8 @@ def speculate_gender_expression(first_name):
         The first name of a person.
 
     :returns:
-        The result will be one of unknown (name not found), andy (androgynous), male, female, mostly_male, or 
-        mostly_female. The difference between andy and unknown is that the former is found to have the same probability 
+        The result will be one of unknown (name not found), andy (androgynous), male, female, mostly_male, or
+        mostly_female. The difference between andy and unknown is that the former is found to have the same probability
         to be male than to be female, while the later means that the name wasn’t found in the training set.
     """
     xyz = __gender_detector.get_gender(first_name)
@@ -355,7 +355,7 @@ def speculate_gender_expression(first_name):
 
 async def collate_authors(articles, affiliation_uniqueness_ratio):
     """
-    Returns a generator that constantly yields summary statistics on the given articles. This function will take the 
+    Returns a generator that constantly yields summary statistics on the given articles. This function will take the
     `articles` generator and provide name suggestions and associated metrics.
 
     :param articles:
