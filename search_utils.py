@@ -12,7 +12,7 @@ import gender_guesser.detector as gender
 
 __gender_detector = gender.Detector()
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -49,6 +49,15 @@ def unique_name_descriptor(author_name):
     last_name, given_names = (parsed["last_name"], parsed["given_names"])
     given_initial = given_names[:1]
     return f"{last_name}, {given_initial}."
+
+
+def is_collaboration(author_name):
+    an = author_name.lower().replace(",", "").split()
+    keys = ("collaboration", "team", "survey", "experiment")
+    for key in keys:
+        if key in an:
+            return True
+    return False
 
 
 def parse_author_name(author_name):
@@ -390,6 +399,8 @@ async def collate_authors(articles, affiliation_uniqueness_ratio):
         ):
 
             key = unique_name_descriptor(author)
+            if is_collaboration(key):
+                continue
 
             suggestions.setdefault(
                 key,
