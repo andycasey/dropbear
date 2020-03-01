@@ -18,7 +18,7 @@
         }
         document.getElementById("tableBody").innerHTML = rows;
         Sortable.initTable(table);
-      }, 1000); // set this low for more frequent table updates
+      }, 10); // set this low for more frequent table updates
     }
     function updateProgressText(numberOfSuggestions) {
       document.getElementById("progressText").innerHTML = numberOfSuggestions + " suggestions";
