@@ -1,1 +1,3 @@
 environment.lock
+.envrc
+cache.db
