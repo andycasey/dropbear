@@ -326,7 +326,7 @@ class AuthorNetwork:
         logger.debug(f"Cache hit for key: {key}")
         return json.loads(row[2])
 
-    async def _search(self, **params):
+    async def _search(self, retries=3, wait=1, **params):
         key = urlencode(sorted(params.items()))
         logger.debug(f"Searching {params} (cache key: {key})")
 
@@ -337,12 +337,15 @@ class AuthorNetwork:
         async with self.session.get(
             "https://api.adsabs.harvard.edu/v1/search/query", params=params
         ) as response:
-            try:
-                content = await response.json()
-            except Exception as e:
-                if response.status != 200:
-                    logger.exception(f"Exception occurred: {e}")
-                    return None
+            if response.status != 200:
+                if retries > 0:
+                    await asyncio.sleep(wait)
+                    return await self._search(
+                        retries=retries - 1, wait=wait * 2, **params
+                    )
+                logger.exception(f"Exception occurred")
+                return None
+            content = await response.json()
 
         logger.debug(
             f"Found {content['response']['numFound']} articles from {params}"

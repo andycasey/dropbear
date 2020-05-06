@@ -2,25 +2,33 @@
 
 Oh they're real.
 
-
 ## Running it locally
 
 1. Clone the repository:
 
-   `git clone git@github.com:andycasey/dropbear.git`
+```bash
+git clone https://github.com:andycasey/dropbear
+cd dropbear
+```
 
-2. Install the conda environment:
+2. Install a conda environment or virtual environment. For example:
 
-   `conda env create -f environment.yml`
+```bash
+conda env create -f environment.yml
+conda activate dropbear
 
-3. Activate the conda environment:
+# or...
 
-   `source activate cenv`
+python -m venv env
+source env/bin/activate
+python -m pip install -U pip
+python -m pip install -e .
+```
 
-4. Make sure you have a NASA/ADS key stored on your computer (follow [these 'getting started' instructions](https://ads.readthedocs.io/en/latest/))
+3. Make sure you have a NASA/ADS key stored on your computer (follow [these 'getting started' instructions](https://ads.readthedocs.io/en/latest/))
 
-5. Run the server:
+4. Start your searching:
 
-   `python simple.py`
-
-6. Navigate to this address in your browser: http://localhost:8080/
+```bash
+dropbear "Casey, Andrew"
+```

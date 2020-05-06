@@ -29,7 +29,7 @@ async def run_search(author, number):
     for author in sorted(
         authors.values(), key=itemgetter("number_of_articles"), reverse=True
     )[:number]:
-        print(author["full_name"], author["number_of_articles"])
+        print(author["full_name"])
 
 
 @click.command()
@@ -42,8 +42,6 @@ async def run_search(author, number):
     help="the number of matches to return",
 )
 def cli(author, number):
-    """
-    Find similar authors for a list of author names
-    """
+    """Find similar authors for a list of author names"""
     loop = asyncio.get_event_loop()
     loop.run_until_complete(run_search(author, number))
