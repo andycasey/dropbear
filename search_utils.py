@@ -24,10 +24,10 @@ async def _search(session, **params):
         try:
             # TODO: I'm not sure if we should be awaiting here..
             content = await response.json()
-        except:
+        except Exception as e:
             if response.status != 200:
                 # TODO: Error handling!
-                logger.exception("Exception occurred when ")
+                logger.exception(f"Exception occurred: {e}")
                 return None
 
     logger.debug(
@@ -38,8 +38,9 @@ async def _search(session, **params):
 
 def unique_name_descriptor(author_name):
     """
-    Return a pseudo-unique name descriptor for the given author name. In other words, parse the given author name and
-    return it in the form "Lastname, F.".
+    Return a pseudo-unique name descriptor for the given author name. In other
+    words, parse the given author name and return it in the form "Lastname,
+    F.".
 
     :param author_name:
         The name as given, which could be a number of different formats.
@@ -62,7 +63,8 @@ def is_collaboration(author_name):
 
 def parse_author_name(author_name):
     """
-    Return a dictionary of parsed attributes of an author's name, regardless of the input format.
+    Return a dictionary of parsed attributes of an author's name, regardless
+    of the input format.
 
     :param author_name:
         The name as given, which could be a number of different formats.
@@ -128,39 +130,50 @@ async def network_search(
     **kwargs,
 ):
     """
-    Returns a generator that yields articles found through a network search of NASA/ADS, given author names.
+    Returns a generator that yields articles found through a network search of
+    NASA/ADS, given author names.
 
     :param session:
-        A `aiohttp.ClientSession` to use for the search. The session is expected to already have the appropriate
-        NASA/ADS authentication headers.
+        A `aiohttp.ClientSession` to use for the search. The session is
+        expected to already have the appropriate NASA/ADS authentication
+        headers.
 
     :param author_names:
-        A list-like object containing names (as "Last, First I.") for the initial search.
+        A list-like object containing names (as "Last, First I.") for the
+        initial search.
 
     :param max_initial_rows: [optional]
-        The maximum number of initial articles (rows) that will be retrieved for *each* entry in `author_names`. The
-        default is 500 rows (per entry in `author_names`). The total number of articles generated will be higher than
-        `len(author_names) * max_initial_rows` if a similarity search is also performed.
+        The maximum number of initial articles (rows) that will be retrieved
+        for *each* entry in `author_names`. The default is 500 rows (per entry
+        in `author_names`). The total number of articles generated will be
+        higher than `len(author_names) * max_initial_rows` if a similarity
+        search is also performed.
 
     :param similarity_search_on_author_indices: [optional]
-        A list-like object containing the indices where a similarity search should be performed, if any of the
-        `author_names` appear as one of these authored indices. For example, if `author_names = ("Snow, Mary", "Water, M.")`
-        and `similarity_search_on_author_indices = (0, 3, 5)` then any time an article was found where _Mary Snow_ or
-        _M. Water_ appeared as the first, fourth, or sixth author (i.e., zero-indexed), then a similarity search would
-        be performed on that article, using the NASA/ADS "similar(bibcode)" functionality.
+        A list-like object containing the indices where a similarity search
+        should be performed, if any of the `author_names` appear as one of
+        these authored indices. For example, if `author_names = ("Snow, Mary",
+        "Water, M.")` and `similarity_search_on_author_indices = (0, 3, 5)`
+        then any time an article was found where _Mary Snow_ or _M. Water_
+        appeared as the first, fourth, or sixth author (i.e., zero-indexed),
+        then a similarity search would be performed on that article, using the
+        NASA/ADS "similar(bibcode)" functionality.
 
-        Set `similarity_search_on_author_indices = None` to prevent any similarity searches.
+        Set `similarity_search_on_author_indices = None` to prevent any
+        similarity searches.
     """
 
     if isinstance(author_names, (str,)):
         warnings.warn(
-            "author_names should be a list-like object. Assuming single author name given; converting to tuple."
+            "author_names should be a list-like object. Assuming single "
+            "author name given; converting to tuple."
         )
         author_names = (author_names,)
 
     if isinstance(similarity_search_on_author_indices, int):
         warnings.warn(
-            "similarity_search_on_author_indices should be a list-like of integers"
+            "similarity_search_on_author_indices should be a list-like of "
+            "integers"
         )
         similarity_search_on_author_indices = (
             similarity_search_on_author_indices,
@@ -212,7 +225,8 @@ async def network_search(
 
     # Start streaming back the initial articles.
     for article in content["response"]["docs"]:
-        # If the article author matches our similarity author indices, add a coroutine to do a similarity search.
+        # If the article author matches our similarity author indices, add a
+        # coroutine to do a similarity search.
         if (
             similar_author_names_on_author_indices(article, *similarity_args)
             and article["bibcode"] not in bibcodes_searched_for_similarity
@@ -227,9 +241,10 @@ async def network_search(
             )
         yield article
 
-    # We use an outer loop here because we might add coroutines to `awaitables` while we are awaiting on those
-    # coroutines. In practice we are awaiting on results from future pages from ADS, and we may want to asynchronously
-    # do similarity searches on some of those articles that have been returned.
+    # We use an outer loop here because we might add coroutines to `awaitables`
+    # while we are awaiting on those coroutines. In practice we are awaiting on
+    # results from future pages from ADS, and we may want to asynchronously do
+    # similarity searches on some of those articles that have been returned.
 
     # This is probably too hacky; there is probably a better way.
     while True:
@@ -249,7 +264,8 @@ async def network_search(
 
                 done = False
                 for article in next_content["response"]["docs"]:
-                    # If the article author matches our similarity author indices, add a coroutine to do a similarity search
+                    # If the article author matches our similarity author
+                    # indices, add a coroutine to do a similarity search
                     if (
                         similar_author_names_on_author_indices(
                             article, *similarity_args
@@ -283,41 +299,55 @@ async def suggest_authors(
     **kwargs,
 ):
     """
-    Perform a network search of NASA/ADS, given some author name(s), and return a generator that will yield suggestions
-    of alternative author names, and associated metrics.
+    Perform a network search of NASA/ADS, given some author name(s), and return
+    a generator that will yield suggestions of alternative author names, and
+    associated metrics.
 
-    Each execution of the generator will yield a dictionary containing one author suggestion, with relevant metadata.
-    If an author is found on multiple articles then that author may be suggested multiple times by the generator, but
-    successive dictionaries for that author will contain updated information about that author (e.g., matched bibcodes,
-    affiliations, et cetera).
+    Each execution of the generator will yield a dictionary containing one
+    author suggestion, with relevant metadata. If an author is found on
+    multiple articles then that author may be suggested multiple times by the
+    generator, but successive dictionaries for that author will contain updated
+    information about that author (e.g., matched bibcodes, affiliations, et
+    cetera).
 
     :param author_names:
-        A list-like object containing names (as "Last, First I.") for the initial search.
+        A list-like object containing names (as "Last, First I.") for the
+        initial search.
 
     :param max_initial_rows: [optional]
-        The maximum number of initial articles (rows) that will be retrieved for *each* entry in `author_names`. The
-        default is 500 rows (per entry in `author_names`). The total number of articles generated will be higher than
-        `len(author_names) * max_initial_rows` if a similarity search is also performed.
+        The maximum number of initial articles (rows) that will be retrieved
+        for *each* entry in `author_names`. The default is 500 rows (per entry
+        in `author_names`). The total number of articles generated will be
+        higher than `len(author_names) * max_initial_rows` if a similarity
+        search is also performed.
 
     :param similarity_search_on_author_indices: [optional]
-        A list-like object containing the indices where a similarity search should be performed, if any of the
-        `author_names` appear as one of these authored indices. For example, if `author_names = ("Snow, Mary", "Water, M.")`
-        and `similarity_search_on_author_indices = (0, 3, 5)` then any time an article was found where _Mary Snow_ or
-        _M. Water_ appeared as the first, fourth, or sixth author (i.e., zero-indexed), then a similarity search would
-        be performed on that article, using the NASA/ADS "similar(bibcode)" functionality.
+        A list-like object containing the indices where a similarity search
+        should be performed, if any of the `author_names` appear as one of
+        these authored indices. For example, if `author_names = ("Snow, Mary",
+        "Water, M.")` and `similarity_search_on_author_indices = (0, 3, 5)`
+        then any time an article was found where _Mary Snow_ or _M. Water_
+        appeared as the first, fourth, or sixth author (i.e., zero-indexed),
+        then a similarity search would be performed on that article, using the
+        NASA/ADS "similar(bibcode)" functionality.
 
-        Set `similarity_search_on_author_indices = None` to prevent any similarity searches.
+        Set `similarity_search_on_author_indices = None` to prevent any
+        similarity searches.
 
     :param session: [optional]
-        A `aiohttp.ClientSession` asynchronous object that is already authenticated to execute queries through the
-        NASA/ADS API. If `None` is provided then a `aiohttp.ClientSession` will be created for this search.
+        A `aiohttp.ClientSession` asynchronous object that is already
+        authenticated to execute queries through the NASA/ADS API. If `None` is
+        provided then a `aiohttp.ClientSession` will be created for this
+        search.
 
     :param affiliation_uniqueness_ratio: [optional]
-        The ratio (between 0 and 100) of two affiliation strings in order for them to be considered as the same
-        affiliation, based on the Levenshtein distance between two affiliation strings. Default is 75.
+        The ratio (between 0 and 100) of two affiliation strings in order for
+        them to be considered as the same affiliation, based on the Levenshtein
+        distance between two affiliation strings. Default is 75.
 
     :returns:
-        A generator that will yield a suggested author name (and relevant metadata), based on the input author names.
+        A generator that will yield a suggested author name (and relevant
+        metadata), based on the input author names.
     """
 
     kwds = dict(
@@ -359,9 +389,11 @@ def speculate_gender_expression(first_name):
         The first name of a person.
 
     :returns:
-        The result will be one of unknown (name not found), andy (androgynous), male, female, mostly_male, or
-        mostly_female. The difference between andy and unknown is that the former is found to have the same probability
-        to be male than to be female, while the later means that the name wasn’t found in the training set.
+        The result will be one of unknown (name not found), andy (androgynous),
+        male, female, mostly_male, or mostly_female. The difference between
+        andy and unknown is that the former is found to have the same
+        probability to be male than to be female, while the later means that
+        the name wasn’t found in the training set.
     """
     xyz = __gender_detector.get_gender(first_name)
     return xyz
@@ -369,15 +401,17 @@ def speculate_gender_expression(first_name):
 
 async def collate_authors(articles, affiliation_uniqueness_ratio):
     """
-    Returns a generator that constantly yields summary statistics on the given articles. This function will take the
-    `articles` generator and provide name suggestions and associated metrics.
+    Returns a generator that constantly yields summary statistics on the given
+    articles. This function will take the `articles` generator and provide name
+    suggestions and associated metrics.
 
     :param articles:
         An iterable that yields articles.
 
     :param affiliation_uniqueness_ratio:
-        The ratio (between 0 and 100) of two affiliation strings in order for them to be considered as the same
-        affiliation, based on the Levenshtein distance between two affiliation strings.
+        The ratio (between 0 and 100) of two affiliation strings in order for
+        them to be considered as the same affiliation, based on the Levenshtein
+        distance between two affiliation strings.
 
     :returns:
         A generator that will constantly yield name suggestions.
@@ -388,8 +422,8 @@ async def collate_authors(articles, affiliation_uniqueness_ratio):
 
     pd_format = "%Y-%m-%d"
     _affiliation_split_str = " ; "  # because &amp; exists.
-    _fix_month = lambda s: s.replace("-00-", "-01-")
-    _fix_pubdate = lambda s: _fix_month(
+    _fix_month = lambda s: s.replace("-00-", "-01-")  # noqa
+    _fix_pubdate = lambda s: _fix_month(  # noqa
         f"{s[:-1]}1" if s.endswith("-00") else s
     )
 
@@ -435,12 +469,14 @@ async def collate_authors(articles, affiliation_uniqueness_ratio):
             )
 
             # Infer gender expression.
-            # TODO: Should we run gender detector on all matched names and take the most common?
+            # TODO: Should we run gender detector on all matched names and
+            # take the most common?
             #       Right now if we searched for
             #           "Foreman-Mackey, Dan"
             #       and found a *single* article authored by
             #           "Foreman-Mackey, Danielle"
-            #       then this would return female because Danielle is longer than Dan.
+            #       then this would return female because Danielle is longer
+            #       than Dan.
             if (
                 previous_full_name is None
                 or previous_full_name != suggestions[key]["full_name"]
